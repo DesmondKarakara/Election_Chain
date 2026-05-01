@@ -1,0 +1,171 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// User registration record (stores hashed identity only)
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  phone         String?
+  fullName      String
+  walletAddress String   @unique
+  
+  // Identity hash (Keccak256 of email+fullName)
+  identityHash  String   @unique
+  
+  // Status flags
+  isEmailVerified Boolean @default(false)
+  isPhoneVerified Boolean @default(false)
+  isEligible      Boolean @default(false)
+  hasVoted        Boolean @default(false)
+  
+  // Assigned voting slot (time-based)
+  votingSlot    DateTime?
+  slotBooked    Boolean  @default(false)
+  
+  // Creation & audit
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  otp           OTP?
+  credentials   Credential?
+  voteRecord    VoteRecord?
+  auditEvents   AuditEvent[]
+}
+
+// OTP verification
+model OTP {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  code      String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  verified  Boolean  @default(false)
+  
+  createdAt DateTime @default(now())
+  
+  @@index([userId])
+}
+
+// One-time login credentials (hashed)
+model Credential {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Hashed credentials (SHA256)
+  usernameHash   String
+  passwordHash   String
+  
+  // Token ID (for blockchain)
+  tokenId        String   @unique
+  
+  // Status
+  isUsed         Boolean  @default(false)
+  usedAt         DateTime?
+  expiresAt      DateTime
+  
+  createdAt      DateTime @default(now())
+  
+  @@index([userId])
+  @@index([tokenId])
+}
+
+// Vote record (linked to vote commitment, not identity)
+model VoteRecord {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Vote commitment (no identity link)
+  commitmentHash     String   @unique
+  encryptedVoteHash  String
+  
+  // Confirmation
+  verificationId     String   @unique
+  candidateSymbol    String   // For VVPAT slip only
+  
+  // Blockchain data
+  blockchainTxHash   String?
+  blockNumber        Int?
+  
+  createdAt          DateTime @default(now())
+  
+  @@index([userId])
+  @@index([commitmentHash])
+}
+
+// Audit trail
+model AuditEvent {
+  id          String   @id @default(cuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  eventType   String   // VOTER_REGISTERED, OTP_VERIFIED, SLOT_BOOKED, VOTE_CAST, etc.
+  eventHash   String
+  description String?
+  
+  // Blockchain reference
+  blockchainEventId String?
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([userId])
+  @@index([eventType])
+  @@index([createdAt])
+}
+
+// Feedback from testnet users
+model Feedback {
+  id          String   @id @default(cuid())
+  
+  name        String
+  email       String
+  walletAddress String
+  
+  rating      Int      // 1-5
+  feedback    String
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([email])
+  @@index([createdAt])
+}
+
+// Voting slots (pre-defined time slots)
+model VotingSlot {
+  id        String   @id @default(cuid())
+  
+  slotTime  DateTime @unique
+  capacity  Int      @default(1000)
+  booked    Int      @default(0)
+  isActive  Boolean  @default(true)
+  
+  createdAt DateTime @default(now())
+  
+  @@index([slotTime])
+}
+
+// Admin users
+model Admin {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String   // In production, hash this
+  
+  role      String   @default("admin") // admin, auditor
+  isActive  Boolean  @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

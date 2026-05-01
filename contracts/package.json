@@ -1,0 +1,21 @@
+{
+  "name": "civicchain-contracts",
+  "version": "1.0.0",
+  "description": "Smart contracts for CivicChain voting platform",
+  "scripts": {
+    "compile": "hardhat compile",
+    "deploy": "hardhat run scripts/deploy.ts --network testnet",
+    "test": "hardhat test",
+    "typechain": "hardhat typechain"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^3.0.0",
+    "hardhat": "^2.17.0",
+    "solidity-coverage": "^0.8.2",
+    "@typechain/ethers-v6": "^0.4.0",
+    "typechain": "^8.3.0"
+  },
+  "dependencies": {
+    "ethers": "^6.4.1"
+  }
+}
